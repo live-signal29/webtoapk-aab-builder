@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import WebToAppConverter from './components/WebToAppConverter';
 import MyAppBuilds from './components/MyAppBuilds';
 import AuthModal from './components/AuthModal';
+import Footer from './components/Footer';
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
@@ -28,28 +29,33 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between font-sans">
+      <div>
+        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
 
-      <Navbar 
-        user={user} 
-        onOpenAuth={() => setAuthModalOpen(true)} 
-        onLogout={handleLogout}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+        <Navbar 
+          user={user} 
+          onOpenAuth={() => setAuthModalOpen(true)} 
+          onLogout={handleLogout}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
 
-      <main className="flex-1">
-        {activeTab === 'builder' ? (
-          <WebToAppConverter 
-            user={user} 
-            onOpenAuth={() => setAuthModalOpen(true)} 
-            onBuildSuccess={() => setActiveTab('builds')}
-          />
-        ) : (
-          <MyAppBuilds user={user} onBackToBuilder={() => setActiveTab('builder')} />
-        )}
-      </main>
+        <main className="flex-1">
+          {activeTab === 'builder' ? (
+            <WebToAppConverter 
+              user={user} 
+              onOpenAuth={() => setAuthModalOpen(true)} 
+              onBuildSuccess={() => setActiveTab('builds')}
+            />
+          ) : (
+            <MyAppBuilds user={user} onBackToBuilder={() => setActiveTab('builder')} />
+          )}
+        </main>
+      </div>
+
+      {/* SEO & Legal Policies Footer */}
+      <Footer />
 
       <AuthModal 
         isOpen={authModalOpen} 
