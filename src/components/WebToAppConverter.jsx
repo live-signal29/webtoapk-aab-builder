@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Smartphone, Globe, Layers, Zap, Upload, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Smartphone, Globe, Layers, Zap, Upload, Lock, Image as ImageIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+
+// Default Branding Assets
+const DEFAULT_ICON_URL = "https://cdn-icons-png.flaticon.com/512/2586/2586488.png"; // Default Modern WebToApp Icon
+const DEFAULT_SPLASH_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1080&auto=format&fit=crop"; // Minimalist Dark Tech Splash
 
 export default function WebToAppConverter({ user, onOpenAuth }) {
   const [selectedPlan, setSelectedPlan] = useState('free_0');
@@ -20,7 +24,6 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
     splashFile: null,
   });
 
-  // Handle Plan selection & Form Rules
   const handlePlanSelect = (planKey) => {
     setSelectedPlan(planKey);
     if (planKey === 'free_0') {
@@ -28,7 +31,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
       toast.success("Free Plan: Standard APK format selected");
     } else if (planKey === 'aab_3') {
       setFormData(p => ({ ...p, buildType: 'aab', packageName: 'com.webtoapp.app', appVersion: '1.0.0' }));
-      toast.success("$3 Plan: AAB format for Play Store selected");
+      toast.success("$3 Plan: AAB format selected");
     } else if (planKey === 'custom_8') {
       toast.success("$8 Plan: Custom Package Name OR Version allowed");
     } else if (planKey === 'pro_15') {
@@ -40,7 +43,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     if ((name === 'packageName' || name === 'appVersion') && (selectedPlan === 'free_0' || selectedPlan === 'aab_3')) {
-      toast.error("Upgrade to $8 or $15 plan to change Package Name or Version!");
+      toast.error("Upgrade to $8 or $15 plan to edit Package Name or Version!");
       return;
     }
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -50,7 +53,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
     const file = e.target.files[0];
     if (file) {
       setFormData((prev) => ({ ...prev, [fileType]: file }));
-      toast.success(`${fileType === 'iconFile' ? 'App Icon' : 'Splash Screen'} selected!`);
+      toast.success(`${fileType === 'iconFile' ? 'Custom Icon' : 'Custom Splash'} selected!`);
     }
   };
 
@@ -90,9 +93,14 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
     const toastId = toast.loading('Submitting conversion request...');
 
     try {
-      const iconUrl = await uploadFileToSupabase(formData.iconFile, 'icon');
-      const splashUrl = await uploadFileToSupabase(formData.splashFile, 'splash');
+      // 1. Upload custom file IF provided, otherwise fallback to Default URL
+      const customIconUrl = await uploadFileToSupabase(formData.iconFile, 'icon');
+      const customSplashUrl = await uploadFileToSupabase(formData.splashFile, 'splash');
 
+      const finalIconUrl = customIconUrl || DEFAULT_ICON_URL;
+      const finalSplashUrl = customSplashUrl || DEFAULT_SPLASH_URL;
+
+      // 2. Insert Record in Supabase DB
       const { error } = await supabase.from('builds').insert([
         {
           user_id: user.id,
@@ -100,8 +108,8 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
           website_url: formData.websiteUrl,
           package_name: formData.packageName,
           app_version: formData.appVersion,
-          icon_url: iconUrl,
-          splash_url: splashUrl,
+          icon_url: finalIconUrl,
+          splash_url: finalSplashUrl,
           onesignal_id: formData.oneSignalId,
           admob_id: formData.admobId,
           build_format: formData.buildType,
@@ -200,14 +208,22 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
 
           {/* Step 2 */}
           <motion.div whileHover={{ scale: 1.005 }} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
-              <Layers className="text-indigo-400" size={20} /> 2. Custom Branding & Format
+            <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-1">
+              <Layers className="text-indigo-400" size={20} /> 2. Custom Branding (Optional)
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <p className="text-xs text-slate-400 mb-4">Leave empty to use Default App Icon & Splash Screen.</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
               
-              <div className="border-2 border-dashed border-slate-800 hover:border-indigo-500/50 rounded-xl p-4 text-center transition bg-slate-950/50">
+              {/* App Icon Box */}
+              <div className="border-2 border-dashed border-slate-800 hover:border-indigo-500/50 rounded-xl p-4 text-center transition bg-slate-950/50 relative">
                 <Upload className="mx-auto text-slate-500 mb-2" size={24} />
-                <span className="block text-xs font-medium text-slate-300">App Icon (.PNG)</span>
+                <span className="block text-xs font-medium text-slate-300">
+                  {formData.iconFile ? formData.iconFile.name : 'App Icon (.PNG)'}
+                </span>
+                <span className="text-[10px] text-slate-500 block mt-0.5">
+                  {formData.iconFile ? 'Custom Selected' : 'Default Icon Applied'}
+                </span>
                 <input 
                   type="file" 
                   accept="image/png" 
@@ -216,9 +232,15 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
                 />
               </div>
 
-              <div className="border-2 border-dashed border-slate-800 hover:border-indigo-500/50 rounded-xl p-4 text-center transition bg-slate-950/50">
+              {/* Splash Box */}
+              <div className="border-2 border-dashed border-slate-800 hover:border-indigo-500/50 rounded-xl p-4 text-center transition bg-slate-950/50 relative">
                 <Upload className="mx-auto text-slate-500 mb-2" size={24} />
-                <span className="block text-xs font-medium text-slate-300">Splash Screen</span>
+                <span className="block text-xs font-medium text-slate-300">
+                  {formData.splashFile ? formData.splashFile.name : 'Splash Screen'}
+                </span>
+                <span className="text-[10px] text-slate-500 block mt-0.5">
+                  {formData.splashFile ? 'Custom Selected' : 'Default Splash Applied'}
+                </span>
                 <input 
                   type="file" 
                   accept="image/png, image/jpeg" 
@@ -226,6 +248,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
                   className="mt-2 text-[10px] text-slate-400 block w-full file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:bg-indigo-600 file:text-white"
                 />
               </div>
+
             </div>
           </motion.div>
         </div>
@@ -236,7 +259,6 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
             <h2 className="text-lg font-bold text-white mb-4">Select Build Plan</h2>
             <div className="space-y-3">
               
-              {/* $0 Plan */}
               <div 
                 onClick={() => handlePlanSelect('free_0')}
                 className={`p-3.5 rounded-xl border cursor-pointer transition ${
@@ -250,7 +272,6 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
                 <p className="text-[10px] text-slate-400 mt-1">APK File Only, Default Package Name</p>
               </div>
 
-              {/* $3 Plan */}
               <div 
                 onClick={() => handlePlanSelect('aab_3')}
                 className={`p-3.5 rounded-xl border cursor-pointer transition ${
@@ -264,7 +285,6 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
                 <p className="text-[10px] text-slate-400 mt-1">1 AAB Build, Default Package Name</p>
               </div>
 
-              {/* $8 Plan */}
               <div 
                 onClick={() => handlePlanSelect('custom_8')}
                 className={`p-3.5 rounded-xl border cursor-pointer transition relative ${
@@ -281,7 +301,6 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
                 <p className="text-[10px] text-slate-400 mt-1">1 AAB/APK Build + Custom Package Name OR Version</p>
               </div>
 
-              {/* $15 Plan */}
               <div 
                 onClick={() => handlePlanSelect('pro_15')}
                 className={`p-3.5 rounded-xl border cursor-pointer transition ${
