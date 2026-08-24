@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient';
+import Navbar from './components/Navbar';
 import WebToAppConverter from './components/WebToAppConverter';
-import BuildHistory from './components/BuildHistory';
+import MyAppBuilds from './components/MyAppBuilds';
 import AuthModal from './components/AuthModal';
-import { LogOut, User, Layers } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('converter');
+  const [activeTab, setActiveTab] = useState('builder');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
+    // Check Active Session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
 
+    // Listen for Auth Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -28,60 +30,34 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
-      <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#0f172a', color: '#fff', border: '1px solid #334155' } }} />
-      
-      {/* Top Navbar */}
-      <nav className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center gap-2 font-bold text-lg text-white">
-          <Layers className="text-indigo-500" size={24} />
-          <span>WebToApp Studio</span>
-        </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
 
-        <div className="flex items-center gap-4">
-          {user ? (
-            <>
-              <button 
-                onClick={() => setActiveTab(activeTab === 'converter' ? 'history' : 'converter')}
-                className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl transition"
-              >
-                {activeTab === 'converter' ? 'My App Builds' : 'Converter Dashboard'}
-              </button>
+      {/* Global Navbar with Mobile Drawer */}
+      <Navbar 
+        user={user} 
+        onOpenAuth={() => setAuthModalOpen(true)} 
+        onLogout={handleLogout}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
 
-              <div className="flex items-center gap-2 border-l border-slate-800 pl-4">
-                <span className="text-xs text-slate-400 hidden sm:inline">{user.email}</span>
-                <button 
-                  onClick={handleLogout}
-                  className="p-2 text-slate-400 hover:text-red-400 transition"
-                  title="Logout"
-                >
-                  <LogOut size={18} />
-                </button>
-              </div>
-            </>
-          ) : (
-            <button 
-              onClick={() => setIsAuthOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-1.5"
-            >
-              <User size={14} /> Login / Register
-            </button>
-          )}
-        </div>
-      </nav>
+      {/* Main View Area */}
+      <main className="flex-1">
+        {activeTab === 'builder' ? (
+          <WebToAppConverter 
+            user={user} 
+            onOpenAuth={() => setAuthModalOpen(true)} 
+          />
+        ) : (
+          <MyAppBuilds user={user} />
+        )}
+      </main>
 
-      {/* View */}
-      {activeTab === 'converter' ? (
-        <WebToAppConverter user={user} onOpenAuth={() => setIsAuthOpen(true)} />
-      ) : (
-        <BuildHistory user={user} />
-      )}
-
-      {/* Auth Modal */}
+      {/* Authentication Modal */}
       <AuthModal 
-        isOpen={isAuthOpen} 
-        onClose={() => setIsAuthOpen(false)} 
-        onSuccess={() => setIsAuthOpen(false)} 
+        isOpen={authModalOpen} 
+        onClose={() => setAuthModalOpen(false)} 
       />
     </div>
   );
