@@ -4,19 +4,18 @@ import WebToAppConverter from './components/WebToAppConverter';
 import BuildHistory from './components/BuildHistory';
 import AuthModal from './components/AuthModal';
 import { LogOut, User, Layers } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('converter'); // 'converter' or 'history'
+  const [activeTab, setActiveTab] = useState('converter');
 
   useEffect(() => {
-    // Check Active Session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
 
-    // Auth State Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -30,6 +29,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+      <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#0f172a', color: '#fff', border: '1px solid #334155' } }} />
+      
       {/* Top Navbar */}
       <nav className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2 font-bold text-lg text-white">
@@ -69,7 +70,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Dynamic Tab View */}
+      {/* View */}
       {activeTab === 'converter' ? (
         <WebToAppConverter user={user} onOpenAuth={() => setIsAuthOpen(true)} />
       ) : (
