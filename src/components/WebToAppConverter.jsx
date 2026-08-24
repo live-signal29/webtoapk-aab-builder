@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Smartphone, Package, Settings2, Zap, ArrowRight, Loader2 } from 'lucide-react';
+import { Smartphone, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function WebToAppConverter({ user, onOpenAuth }) {
   const [appName, setAppName] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [packageName, setPackageName] = useState('com.webtoapp.app');
-  const [selectedPlan, setSelectedPlan] = useState('free'); // 'free', 'aab', 'custom', 'pro'
+  const [selectedPlan, setSelectedPlan] = useState('free');
   const [loading, setLoading] = useState(false);
-
-  const NOWPAYMENTS_API_KEY = "0F2K452-EVR466V-PA9G1";
 
   const plans = [
     {
@@ -18,21 +16,21 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
       name: 'Free Single Build',
       price: 0,
       buildType: 'apk',
-      desc: '1 APK File, Standard Package Name'
+      desc: '1 APK, Standard Package'
     },
     {
       id: 'aab',
       name: 'Play Store AAB',
       price: 3,
       buildType: 'aab',
-      desc: '1 AAB Build for Google Play Store'
+      desc: '1 AAB Build for Play Store'
     },
     {
       id: 'custom',
       name: 'Custom Package or Version',
       price: 8,
       buildType: 'apk',
-      desc: 'Custom Package ID or Version Edit',
+      desc: 'Custom Package ID / Version Edit',
       badge: 'POPULAR'
     },
     {
@@ -54,7 +52,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
     }
 
     if (!appName || !websiteUrl) {
-      toast.error("Please fill all required fields");
+      toast.error("Please fill required fields");
       return;
     }
 
@@ -64,7 +62,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
       const activePlan = plans.find(p => p.id === selectedPlan);
       const isFree = activePlan.price === 0;
 
-      // 1. Database Entry
+      // 1. Save build record in Supabase
       const { data: buildData, error: dbError } = await supabase
         .from('builds')
         .insert([
@@ -83,34 +81,31 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
 
       if (dbError) throw dbError;
 
-      // 2. Free Plan -> Direct Build
+      // 2. Free Plan -> Instant Build Submit
       if (isFree) {
-        toast.success("Free build submitted! Your APK will be ready in 2-3 minutes.");
+        toast.success("Free build queued! Check dashboard in 2 mins.");
+        setAppName('');
+        setWebsiteUrl('');
         setLoading(false);
         return;
       }
 
-      // 3. Paid Plan -> NOWPayments Invoice
-      const response = await fetch('https://api.nowpayments.io/v1/invoice', {
+      // 3. Paid Plan -> Call backend API route
+      const apiRes = await fetch('/api/create-invoice', {
         method: 'POST',
-        headers: {
-          'x-api-key': NOWPAYMENTS_API_KEY,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          price_amount: activePlan.price,
-          price_currency: 'usd',
-          order_id: buildData.id.toString(),
-          order_description: `WebToApp ${activePlan.name} (${appName})`,
-          success_url: `${window.location.origin}/dashboard?status=success`,
-          cancel_url: `${window.location.origin}/?status=cancelled`
+          price: activePlan.price,
+          orderId: buildData.id,
+          appName: appName,
+          planName: activePlan.name
         })
       });
 
-      const invoiceData = await response.json();
+      const invoiceData = await apiRes.json();
 
-      if (!invoiceData || !invoiceData.invoice_url) {
-        throw new Error("Failed to generate payment link.");
+      if (!apiRes.ok || !invoiceData.invoice_url) {
+        throw new Error(invoiceData.error || "Failed to generate payment link");
       }
 
       window.location.href = invoiceData.invoice_url;
@@ -123,34 +118,37 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
     }
   };
 
-  return (
-    <div className="max-w-xl mx-auto p-4">
-      <div className="bg-[#0b0f19] border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl">
-        <h2 className="text-xl font-bold text-white mb-6">Select Build Plan</h2>
+  const activePlanObj = plans.find(p => p.id === selectedPlan);
 
-        <form onSubmit={handleStartBuild} className="space-y-6">
-          <div className="space-y-3">
+  return (
+    <div className="max-w-md mx-auto p-2">
+      <div className="bg-[#0b0f19] border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Select Build Plan</h2>
+
+        <form onSubmit={handleStartBuild} className="space-y-3">
+          {/* Compact Category Grid / List */}
+          <div className="space-y-2">
             {plans.map((plan) => (
               <div
                 key={plan.id}
                 onClick={() => setSelectedPlan(plan.id)}
-                className={`relative p-4 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
+                className={`relative px-3 py-2 rounded-xl border cursor-pointer transition flex items-center justify-between ${
                   selectedPlan === plan.id
-                    ? 'bg-[#101929] border-emerald-500 shadow-lg shadow-emerald-500/10'
+                    ? 'bg-[#101929] border-emerald-500 shadow-md shadow-emerald-500/10'
                     : 'bg-[#0a0d14] border-slate-800/80 hover:border-slate-700'
                 }`}
               >
                 {plan.badge && (
-                  <span className="absolute -top-2.5 right-4 bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full tracking-wider uppercase">
+                  <span className="absolute -top-2 right-3 bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase">
                     {plan.badge}
                   </span>
                 )}
                 <div>
-                  <h3 className="font-bold text-sm text-white">{plan.name}</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{plan.desc}</p>
+                  <h3 className="font-bold text-xs text-white leading-tight">{plan.name}</h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{plan.desc}</p>
                 </div>
-                <div className="text-right">
-                  <span className={`text-lg font-black ${plan.price === 0 ? 'text-emerald-400' : 'text-indigo-400'}`}>
+                <div className="text-right pl-2">
+                  <span className={`text-sm font-black ${plan.price === 0 ? 'text-emerald-400' : 'text-indigo-400'}`}>
                     ${plan.price}
                   </span>
                 </div>
@@ -158,54 +156,56 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
             ))}
           </div>
 
-          <div className="space-y-4 pt-2">
+          {/* Compact Form Inputs */}
+          <div className="space-y-2.5 pt-1">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-1">App Name</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">App Name</label>
               <input
                 type="text"
                 placeholder="My Web App"
                 value={appName}
                 onChange={(e) => setAppName(e.target.value)}
-                className="w-full bg-[#05070c] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#05070c] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Website URL</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Website URL</label>
               <input
                 type="url"
                 placeholder="https://yourwebsite.com"
                 value={websiteUrl}
                 onChange={(e) => setWebsiteUrl(e.target.value)}
-                className="w-full bg-[#05070c] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#05070c] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                 required
               />
             </div>
 
             {(selectedPlan === 'custom' || selectedPlan === 'pro') && (
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Package ID</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Package ID</label>
                 <input
                   type="text"
                   value={packageName}
                   onChange={(e) => setPackageName(e.target.value)}
-                  className="w-full bg-[#05070c] border border-slate-800 rounded-xl px-4 py-3 text-sm text-indigo-400 font-mono focus:outline-none"
+                  className="w-full bg-[#05070c] border border-slate-800 rounded-lg px-3 py-2 text-xs text-indigo-400 font-mono focus:outline-none"
                 />
               </div>
             )}
           </div>
 
+          {/* Action Button visible without excess scrolling */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-4 rounded-2xl text-sm flex items-center justify-center gap-2 transition shadow-xl disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-lg disabled:opacity-50 mt-2"
           >
             {loading ? (
-              <Loader2 size={18} className="animate-spin" />
+              <Loader2 size={16} className="animate-spin" />
             ) : (
               <>
-                <Smartphone size={18} /> Start {selectedPlan.toUpperCase()} Build
+                <Smartphone size={16} /> Start {activePlanObj.name}
               </>
             )}
           </button>
