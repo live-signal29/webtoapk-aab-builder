@@ -12,12 +12,10 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
-    // Check Active Session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
 
-    // Listen for Auth Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -33,7 +31,6 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
 
-      {/* Global Navbar with Mobile Drawer */}
       <Navbar 
         user={user} 
         onOpenAuth={() => setAuthModalOpen(true)} 
@@ -42,19 +39,18 @@ export default function App() {
         setActiveTab={setActiveTab}
       />
 
-      {/* Main View Area */}
       <main className="flex-1">
         {activeTab === 'builder' ? (
           <WebToAppConverter 
             user={user} 
             onOpenAuth={() => setAuthModalOpen(true)} 
+            onBuildSuccess={() => setActiveTab('builds')}
           />
         ) : (
-          <MyAppBuilds user={user} />
+          <MyAppBuilds user={user} onBackToBuilder={() => setActiveTab('builder')} />
         )}
       </main>
 
-      {/* Authentication Modal */}
       <AuthModal 
         isOpen={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
