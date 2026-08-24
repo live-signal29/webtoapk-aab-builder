@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-rate-limit-disabled'; // Standard Supabase client
+import { createClient } from '@supabase/supabase-js';
 
-// Environment Variables se URL aur Anon Key read ho rahe hain
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'YOUR_SUPABASE_URL';
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
 
