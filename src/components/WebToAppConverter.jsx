@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Smartphone, Loader2 } from 'lucide-react';
+import { Smartphone, Image as ImageIcon, Sparkles, Upload, CheckCircle2, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function WebToAppConverter({ user, onOpenAuth }) {
   const [appName, setAppName] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [packageName, setPackageName] = useState('com.webtoapp.app');
+  const [versionCode, setVersionCode] = useState('1');
+  const [versionName, setVersionName] = useState('1.0.0');
+  const [iconUrl, setIconUrl] = useState('');
+  const [splashUrl, setSplashUrl] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('free');
   const [loading, setLoading] = useState(false);
 
@@ -16,21 +20,21 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
       name: 'Free Single Build',
       price: 0,
       buildType: 'apk',
-      desc: '1 APK, Standard Package'
+      desc: '1 APK, Standard Package & Default Assets'
     },
     {
       id: 'aab',
       name: 'Play Store AAB',
       price: 3,
       buildType: 'aab',
-      desc: '1 AAB Build for Play Store'
+      desc: '1 AAB File for Google Play Store'
     },
     {
       id: 'custom',
       name: 'Custom Package or Version',
       price: 8,
       buildType: 'apk',
-      desc: 'Custom Package ID / Version Edit',
+      desc: 'Custom Package ID, Version & Custom Icon',
       badge: 'POPULAR'
     },
     {
@@ -38,9 +42,17 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
       name: 'Pro Bundle',
       price: 15,
       buildType: 'both',
-      desc: 'APK + AAB + Full Customization'
+      desc: 'APK + AAB + Full Customization (Icon + Splash)'
     }
   ];
+
+  const activePlan = plans.find(p => p.id === selectedPlan);
+
+  // Conditions based on plan level
+  const showPackageInput = selectedPlan === 'custom' || selectedPlan === 'pro';
+  const showVersionInputs = selectedPlan === 'custom' || selectedPlan === 'pro';
+  const showIconInput = selectedPlan === 'custom' || selectedPlan === 'pro';
+  const showSplashInput = selectedPlan === 'pro';
 
   const handleStartBuild = async (e) => {
     e.preventDefault();
@@ -59,10 +71,9 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
     setLoading(true);
 
     try {
-      const activePlan = plans.find(p => p.id === selectedPlan);
       const isFree = activePlan.price === 0;
 
-      // 1. Save build record in Supabase
+      // Save build details to Supabase
       const { data: buildData, error: dbError } = await supabase
         .from('builds')
         .insert([
@@ -70,7 +81,11 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
             user_id: user.id,
             app_name: appName,
             website_url: websiteUrl,
-            package_name: packageName,
+            package_name: showPackageInput ? packageName : 'com.webtoapp.app',
+            version_code: showVersionInputs ? versionCode : '1',
+            version_name: showVersionInputs ? versionName : '1.0.0',
+            icon_url: showIconInput ? iconUrl : null,
+            splash_url: showSplashInput ? splashUrl : null,
             build_type: activePlan.buildType,
             payment_status: isFree ? 'paid' : 'pending_payment',
             status: 'pending'
@@ -81,7 +96,6 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
 
       if (dbError) throw dbError;
 
-      // 2. Free Plan -> Instant Build Submit
       if (isFree) {
         toast.success("Free build queued! Check dashboard in 2 mins.");
         setAppName('');
@@ -90,7 +104,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
         return;
       }
 
-      // 3. Paid Plan -> Call backend API route
+      // Paid Plan via backend invoice API
       const apiRes = await fetch('/api/create-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -118,21 +132,19 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
     }
   };
 
-  const activePlanObj = plans.find(p => p.id === selectedPlan);
-
   return (
     <div className="max-w-md mx-auto p-2">
-      <div className="bg-[#0b0f19] border border-slate-800 rounded-2xl p-4 shadow-xl">
-        <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Select Build Plan</h2>
+      <div className="bg-[#0b0f19] border border-slate-800 rounded-2xl p-4 shadow-2xl">
+        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">SELECT BUILD PLAN</h2>
 
         <form onSubmit={handleStartBuild} className="space-y-3">
-          {/* Compact Category Grid / List */}
+          {/* Plan Selector Grid */}
           <div className="space-y-2">
             {plans.map((plan) => (
               <div
                 key={plan.id}
                 onClick={() => setSelectedPlan(plan.id)}
-                className={`relative px-3 py-2 rounded-xl border cursor-pointer transition flex items-center justify-between ${
+                className={`relative px-3 py-2.5 rounded-xl border cursor-pointer transition flex items-center justify-between ${
                   selectedPlan === plan.id
                     ? 'bg-[#101929] border-emerald-500 shadow-md shadow-emerald-500/10'
                     : 'bg-[#0a0d14] border-slate-800/80 hover:border-slate-700'
@@ -156,10 +168,11 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
             ))}
           </div>
 
-          {/* Compact Form Inputs */}
+          {/* Form Fields Section */}
           <div className="space-y-2.5 pt-1">
+            {/* Required Common Inputs */}
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">App Name</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">APP NAME *</label>
               <input
                 type="text"
                 placeholder="My Web App"
@@ -171,7 +184,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Website URL</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">WEBSITE URL *</label>
               <input
                 type="url"
                 placeholder="https://yourwebsite.com"
@@ -182,20 +195,89 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
               />
             </div>
 
-            {(selectedPlan === 'custom' || selectedPlan === 'pro') && (
+            {/* Custom Package Input */}
+            {showPackageInput ? (
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Package ID</label>
+                <label className="block text-[10px] font-bold text-amber-400 uppercase mb-1">PACKAGE ID (CUSTOM)</label>
                 <input
                   type="text"
                   value={packageName}
                   onChange={(e) => setPackageName(e.target.value)}
-                  className="w-full bg-[#05070c] border border-slate-800 rounded-lg px-3 py-2 text-xs text-indigo-400 font-mono focus:outline-none"
+                  placeholder="com.mycompany.myapp"
+                  className="w-full bg-[#05070c] border border-amber-500/40 rounded-lg px-3 py-2 text-xs text-amber-300 font-mono focus:outline-none"
                 />
               </div>
+            ) : (
+              <div className="text-[10px] text-slate-500 flex justify-between px-1">
+                <span>Package ID:</span>
+                <span className="font-mono text-slate-400">com.webtoapp.app (Default)</span>
+              </div>
             )}
+
+            {/* Custom Version Code & Name Inputs */}
+            {showVersionInputs && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">VERSION CODE</label>
+                  <input
+                    type="number"
+                    value={versionCode}
+                    onChange={(e) => setVersionCode(e.target.value)}
+                    className="w-full bg-[#05070c] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">VERSION NAME</label>
+                  <input
+                    type="text"
+                    value={versionName}
+                    onChange={(e) => setVersionName(e.target.value)}
+                    className="w-full bg-[#05070c] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* App Icon Upload / URL */}
+            {showIconInput ? (
+              <div>
+                <label className="block text-[10px] font-bold text-indigo-400 uppercase mb-1">APP ICON URL (512x512)</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/icon.png"
+                  value={iconUrl}
+                  onChange={(e) => setIconUrl(e.target.value)}
+                  className="w-full bg-[#05070c] border border-indigo-500/40 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
+                />
+              </div>
+            ) : (
+              <div className="text-[10px] text-slate-500 flex justify-between px-1">
+                <span>App Icon:</span>
+                <span className="text-slate-400">Default WebToApp Icon</span>
+              </div>
+            )}
+
+            {/* Splash Screen Upload / URL (Pro Only) */}
+            {showSplashInput ? (
+              <div>
+                <label className="block text-[10px] font-bold text-purple-400 uppercase mb-1">SPLASH SCREEN URL (PRO)</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/splash.png"
+                  value={splashUrl}
+                  onChange={(e) => setSplashUrl(e.target.value)}
+                  className="w-full bg-[#05070c] border border-purple-500/40 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
+                />
+              </div>
+            ) : selectedPlan === 'custom' ? (
+              <div className="text-[10px] text-slate-500 flex justify-between px-1">
+                <span>Splash Screen:</span>
+                <span className="text-slate-400">Default Splash (Upgrade to Pro for Custom)</span>
+              </div>
+            ) : null}
           </div>
 
-          {/* Action Button visible without excess scrolling */}
+          {/* Compact Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -205,7 +287,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
               <Loader2 size={16} className="animate-spin" />
             ) : (
               <>
-                <Smartphone size={16} /> Start {activePlanObj.name}
+                <Smartphone size={16} /> START {activePlan.name}
               </>
             )}
           </button>
