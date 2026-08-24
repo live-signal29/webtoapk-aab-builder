@@ -11,7 +11,7 @@ export default function WebToAppConverter({ user, onOpenAuth }) {
   const [loading, setLoading] = useState(false);
 
   // Aap ki NOWPayments API Key
-  const NOWPAYMENTS_API_KEY = "0F2K452-EVR466V-PA9G1";
+  const NOWPAYMENTS_API_KEY = "0F2K452-EVR466V-PA9G1EY-XH9FH90";
 
   const handleStartBuildAndPay = async (e) => {
     e.preventDefault();
