@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Download, Clock, CheckCircle2, AlertCircle, RefreshCw, Smartphone, Package } from 'lucide-react';
+import { Download, Clock, CheckCircle2, AlertCircle, RefreshCw, Package, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function MyAppBuilds({ user }) {
